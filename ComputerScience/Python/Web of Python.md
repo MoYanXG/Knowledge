@@ -1,4 +1,4 @@
-# 虚拟环境
+ # 虚拟环境
 
 在项目目录下，打开cmd
 ```
@@ -636,3 +636,168 @@ linebreaks 将包括换行符的条目转换为可理解的格式，避免显示
 
 # 用户账户
 ## 让用户输入数据
+
+### 用于添加主题的表单
+```python
+from django import forms  
+  
+from .models import Topic  
+  
+class TopicForm(forms.ModelForm):  
+    class Meta:  
+        model = Topic  
+        fields = ['text']  
+        labels = {'text': ''}
+```
+
+
+### URL模式
+```PYTHON
+--snip--
+urlpatterns = [
+	--snip--
+	# 用于添加新主题的页面
+	path('new_topic/', views.new_topic, name='new_topic'),
+]
+```
+
+### 视图函数
+```PYTHON
+from django.shortcuts import render, redirect  
+  
+from .models import  Topic  
+from .forms import TopicForm
+
+--snip--
+def new_topic(request):
+	"""添加新主题"""
+    if request.method != 'POST':
+	    # 未提交数据：创建一个新表单  
+        form = TopicForm()  
+    else:
+	    # POST提交的数据：对数据进行处理  
+        form = TopicForm(data = request.POST)  
+        if form.is_valid():  
+            form.save()  
+            return redirect('learning_logs:topics')
+      
+	# 显示空表单或指出表单数据无效  
+    context = {'form': form}  
+    return render(request, 'learning_logs/new_topic.html', context)
+```
+
+### GET请求与POST请求
+
+
+### 模板
+创建模板new_topic.html
+```PYTHON
+{% extends "learning_logs/base.html" %}  
+  
+{% block content %}  
+    <p>Add a new topic:</p>  
+  
+    <form action="{% url 'learning_logs:new_topic' %}" method='post'>  
+        {% csrf_token %}  
+        {{ form.as_p }}  
+        <button name="submit">Add topic</button>  
+    </form>{% endblock content %}
+```
+
+### 链接到页面
+```PYTHON
+{% extends "learning_logs/base.html" %}  
+{% block content %}  
+    <p>Topics</p>  
+    <ul>
+    --sinp--
+    </ul>  
+  
+    <a href="{% url 'learning_logs:new_topic' %}">Add a new topic</a>  
+  
+{% endblock content %}
+```
+
+## 添加新条目
+
+### 用于添加新条目的表单
+修改forms.py
+```PYTHON
+from django import forms  
+  
+from .models import Topic, Entry  
+  
+class TopicForm(forms.ModelForm):  
+    --sinp--
+  
+class EntryForm(forms.ModelForm):  
+    class Meta:  
+        model = Entry  
+        fields = ['text']  
+        labels = {'text': ''}  
+        widgets = {'text': forms.Textarea(attrs={'cols': 80})}
+```
+
+### URL模式
+修改learning_logs/urls.py
+```PYTHON
+--snip--
+urlpatterns = [
+	--snip--
+	# 用于添加新条目的页面
+	path('new_entry/<int:topic_id>/', views.new_entry, name='new_entry'),
+]
+```
+
+### 视图函数
+修改views.py
+```PYTHON
+from django.shortcuts import render, redirect  
+  
+from .models import  Topic  
+from .forms import TopicForm, EntryForm
+
+--sinp--
+def new_entry(request, topic_id):
+	"""在特定主题中添加新条目"""
+    topic = Topic.objects.get(id=topic_id)  
+    if request.method != 'POST':
+	    # 未提交数据：创建一个空表单  
+        form = EntryForm()  
+    else:
+	    # POST提交的数据：对数据进行处理  
+        form = EntryForm(data=request.POST)  
+        if form.is_valid():  
+            new_entry = form.save(commit=False)  
+            new_entry.topic = topic  
+            new_entry.save()  
+            return redirect('learning_logs:topic', topic_id=topic_id)
+
+	# 显示空表单或指出表单数据无效	
+    context = {'topic': topic, 'form': form}  
+    return render(request, 'learning_logs/new_entry.html', context)
+```
+
+
+### 模板
+创建模板new_entry.html
+```PYTHON
+{% extends "learning_logs/base.html" %}  
+  
+{% block content %}  
+    <p><a href="{% url 'learning_logs:topic' topic.id %}">{{ topic }}</a></p>  
+  
+    <p>Add a new entry:</p>  
+    <form action="{% url 'learning_logs:new_entry' topic.id %}" method='post'>  
+        {% csrf_token %}  
+        {{ form.as_p }}  
+        <button name='submit'>Add entry</button>  
+    </form>  
+{% endblock content %}
+```
+
+### 链接到页面
+修改topic.html
+```PYTHON
+
+```
